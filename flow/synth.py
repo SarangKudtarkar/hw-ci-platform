@@ -4,8 +4,13 @@ import time
 from pathlib import Path
 
 
-def run_synthesis(rtl_file, top_module):
+def run_synthesis(rtl_file, top_module, output_dir="results/synthesis"):
     rtl_file = Path(rtl_file)
+
+    output_dir = Path(output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    netlist_file = output_dir / f"{top_module}_netlist.v"
 
     start = time.time()
 
@@ -14,7 +19,8 @@ def run_synthesis(rtl_file, top_module):
         "-p",
         f"read_verilog {rtl_file}; "
         f"hierarchy -top {top_module}; "
-        "proc; opt; check; stat",
+        "proc; opt; check; stat; "
+        f"write_verilog -noattr {netlist_file}",
     ]
 
     result = subprocess.run(
@@ -32,6 +38,7 @@ def run_synthesis(rtl_file, top_module):
         "stdout": result.stdout,
         "stderr": result.stderr,
         "returncode": result.returncode,
+        "netlist": str(netlist_file) if result.returncode == 0 else None,
     }
 
 
@@ -49,5 +56,8 @@ if __name__ == "__main__":
     if result["stderr"]:
         print("\nYosys output:")
         print(result["stderr"])
+
+    if result["netlist"]:
+        print(f"Netlist: {result['netlist']}")
 
     sys.exit(result["returncode"])

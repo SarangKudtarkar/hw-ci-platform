@@ -32,3 +32,57 @@ def create_stage_result(build_id, stage, status, runtime_sec):
             """,
             (build_id, stage, status, runtime_sec),
         )
+
+
+def create_timing_result(build_id, corner, setup_wns, hold_whs):
+    with connect() as conn:
+        conn.execute(
+            """
+            INSERT INTO timing_results
+            (build_id, corner, setup_wns, hold_whs)
+            VALUES (?, ?, ?, ?)
+            """,
+            (build_id, corner, setup_wns, hold_whs),
+        )
+
+
+def get_timing_results(build_id):
+    with connect() as conn:
+        return conn.execute(
+            """
+            SELECT corner, setup_wns, hold_whs
+            FROM timing_results
+            WHERE build_id = ?
+            ORDER BY corner
+            """,
+            (build_id,),
+        ).fetchall()
+
+
+def get_previous_corner_timing(build_id, corner):
+    with connect() as conn:
+        return conn.execute(
+            """
+            SELECT setup_wns, hold_whs
+            FROM timing_results
+            WHERE build_id < ?
+              AND corner = ?
+            ORDER BY build_id DESC
+            LIMIT 1
+            """,
+            (build_id, corner),
+        ).fetchone()
+
+
+def get_previous_timing_result(build_id):
+    with connect() as conn:
+        return conn.execute(
+            """
+            SELECT setup_wns, hold_whs
+            FROM timing_results
+            WHERE build_id < ?
+            ORDER BY build_id DESC
+            LIMIT 1
+            """,
+            (build_id,),
+        ).fetchone()

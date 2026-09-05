@@ -15,3 +15,11 @@ CREATE TABLE IF NOT EXISTS stage_results (
     runtime_sec REAL NOT NULL,
     FOREIGN KEY (build_id) REFERENCES builds(id)
 );
+
+CREATE TABLE IF NOT EXISTS timing_results (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    build_id INTEGER NOT NULL,
+    setup_wns REAL,
+    hold_whs REAL,
+    FOREIGN KEY (build_id) REFERENCES builds(id)
+);
