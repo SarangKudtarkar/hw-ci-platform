@@ -39,6 +39,9 @@ link_design {top_module}
 read_sdc {Path(sdc).resolve()}
 read_spef {Path(spef).resolve()}
 
+report_checks -path_delay max -group_count 100
+report_checks -path_delay min -group_count 100
+
 report_worst_slack -max
 report_worst_slack -min
 
@@ -77,14 +80,33 @@ exit
     output = result.stdout + "\n" + result.stderr
     report_file.write_text(output)
 
-    slacks = re.findall(
+    worst_slacks = re.findall(
         r"worst slack\s+(-?\d+(?:\.\d+)?)",
         output,
         re.IGNORECASE,
     )
 
-    setup_wns = float(slacks[0]) if len(slacks) >= 1 else None
-    hold_whs = float(slacks[1]) if len(slacks) >= 2 else None
+    setup_wns = float(worst_slacks[0]) if len(worst_slacks) >= 1 else None
+    hold_whs = float(worst_slacks[1]) if len(worst_slacks) >= 2 else None
+
+    path_slacks = [
+        float(value)
+        for value in re.findall(
+            r"(-?\d+(?:\.\d+)?)\\s+slack\\s+\\((?:MET|VIOLATED)\\)",
+            output,
+            re.IGNORECASE,
+        )
+    ]
+
+    setup_tns = sum(
+        slack for slack in path_slacks[:100]
+        if slack < 0
+    )
+
+    hold_tns = sum(
+        slack for slack in path_slacks[100:200]
+        if slack < 0
+    )
 
     status = (
         "PASS"
@@ -102,6 +124,8 @@ exit
         "runtime_sec": round(runtime, 3),
         "setup_wns": setup_wns,
         "hold_whs": hold_whs,
+        "setup_tns": round(setup_tns, 3),
+        "hold_tns": round(hold_tns, 3),
         "report": str(report_file),
     }
 

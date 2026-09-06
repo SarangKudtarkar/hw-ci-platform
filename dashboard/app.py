@@ -59,51 +59,113 @@ st.markdown("""
 <style>
     html, body, [class*="css"], .stApp {
         font-family: "Segoe UI", Arial, sans-serif;
+        font-size: 20px;
     }
 
     h1 {
-        font-size: 2.8rem;
+        font-size: 3.4rem;
         font-weight: 700;
         letter-spacing: -0.5px;
     }
 
     h2 {
-        font-size: 1.8rem;
+        font-size: 2.3rem;
         font-weight: 650;
-        margin-top: 1.8rem;
+        margin-top: 2rem;
     }
 
     h3 {
-        font-size: 1.5rem;
+        font-size: 1.9rem;
         font-weight: 650;
     }
 
-    p {
-        font-size: 18px;
+    p, label, span, div {
+        font-size: 20px;
     }
 
     [data-testid="stMetric"] {
-        padding: 12px 8px;
+        padding: 16px 10px;
     }
 
     [data-testid="stMetricLabel"] {
-        font-size: 17px;
-        font-weight: 600;
+        font-size: 20px;
+        font-weight: 650;
     }
 
     [data-testid="stMetricValue"] {
-        font-size: 2.7rem;
+        font-size: 3.2rem;
         font-weight: 700;
-        line-height: 1.2;
+        line-height: 1.25;
     }
 
     [data-testid="stDataFrame"] {
-        font-size: 17px;
+        font-size: 20px;
+    }
+
+    [data-testid="stDataFrame"] div {
+        font-size: 19px;
     }
 
     .stCaption {
-        font-size: 16px;
+        font-size: 18px;
     }
+
+    .stAlert {
+        font-size: 22px !important;
+    }
+
+    /* Force readable text across Streamlit components */
+    .stApp p,
+    .stApp label,
+    .stApp span {
+        font-size: 22px !important;
+    }
+
+    .stApp .stCaption,
+    .stApp [data-testid="stCaptionContainer"] {
+        font-size: 20px !important;
+    }
+
+    .stApp [data-testid="stMetricLabel"] {
+        font-size: 22px !important;
+    }
+
+    .stApp [data-testid="stMetricValue"] {
+        font-size: 3.4rem !important;
+    }
+
+    .stApp [data-testid="stDataFrame"] * {
+        font-size: 20px !important;
+    }
+
+    /* Streamlit heading text */
+    .stApp [data-heading-text] {
+        font-size: 56px !important;
+        line-height: 1.15 !important;
+        font-weight: 700 !important;
+    }
+
+/* Streamlit dataframe / Glide Data Editor */
+.stApp [data-testid="stDataFrame"] {
+    font-size: 22px !important;
+}
+
+.stApp [data-testid="stDataFrame"] .dvn-scroller,
+.stApp [data-testid="stDataFrame"] .dvn-scroller * {
+    font-size: 21px !important;
+}
+
+/* Glide Data Editor cells and headers */
+.stApp [data-testid="stDataFrame"] [role="gridcell"],
+.stApp [data-testid="stDataFrame"] [role="columnheader"] {
+    font-size: 21px !important;
+}
+
+/* Text rendered inside the grid */
+.stApp [data-testid="stDataFrame"] canvas {
+    font-size: 21px !important;
+}
+
 </style>
 """, unsafe_allow_html=True)
 
@@ -204,7 +266,65 @@ if not timing.empty:
         aggfunc="first",
     )
 
-    st.line_chart(trend)
+    import altair as alt
+
+    trend_chart = (
+        alt.Chart(
+            trend.reset_index().melt(
+                id_vars="build_id",
+                var_name="corner",
+                value_name="setup_wns",
+            )
+        )
+        .mark_line(point=True)
+        .encode(
+            x=alt.X(
+                "build_id:O",
+                title="Build ID",
+                axis=alt.Axis(
+                    labelFontSize=18,
+                    titleFontSize=21,
+                    labelAngle=0,
+                ),
+            ),
+            y=alt.Y(
+                "setup_wns:Q",
+                title="Setup WNS (ns)",
+                axis=alt.Axis(
+                    labelFontSize=18,
+                    titleFontSize=21,
+                ),
+            ),
+            color=alt.Color(
+                "corner:N",
+                title="Corner",
+                legend=alt.Legend(
+                    labelFontSize=18,
+                    titleFontSize=21,
+                ),
+            ),
+            tooltip=[
+                alt.Tooltip("build_id:O", title="Build ID"),
+                alt.Tooltip("corner:N", title="Corner"),
+                alt.Tooltip(
+                    "setup_wns:Q",
+                    title="Setup WNS",
+                    format=".2f",
+                ),
+            ],
+        )
+        .properties(
+            height=450,
+        )
+        .configure_view(
+            strokeWidth=0,
+        )
+    )
+
+    st.altair_chart(
+        trend_chart,
+        use_container_width=True,
+    )
 
     st.subheader("Timing History")
 
@@ -234,7 +354,50 @@ if not timing.empty:
 st.subheader("Build Runtime Trend")
 
 chart_data = builds.set_index("id")[["runtime_sec"]]
-st.line_chart(chart_data)
+runtime_chart = (
+    alt.Chart(
+        chart_data.reset_index()
+    )
+    .mark_line(point=True)
+    .encode(
+        x=alt.X(
+            "id:O",
+            title="Build ID",
+            axis=alt.Axis(
+                labelFontSize=18,
+                titleFontSize=21,
+                labelAngle=0,
+            ),
+        ),
+        y=alt.Y(
+            "runtime_sec:Q",
+            title="Runtime (seconds)",
+            axis=alt.Axis(
+                labelFontSize=18,
+                titleFontSize=21,
+            ),
+        ),
+        tooltip=[
+            alt.Tooltip("id:O", title="Build ID"),
+            alt.Tooltip(
+                "runtime_sec:Q",
+                title="Runtime",
+                format=".3f",
+            ),
+        ],
+    )
+    .properties(
+        height=400,
+    )
+    .configure_view(
+        strokeWidth=0,
+    )
+)
+
+st.altair_chart(
+    runtime_chart,
+    use_container_width=True,
+)
 
 st.subheader("Build History")
 

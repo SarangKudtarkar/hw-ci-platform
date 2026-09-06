@@ -12,7 +12,7 @@ from synth import run_synthesis
 from simulate import run_simulation
 from mmmc_sta import run_mmmc_sta
 
-from db.database import create_build, create_stage_result, create_timing_result
+from db.database import create_build, create_stage_result, create_timing_result, get_previous_corner_timing
 
 
 def get_git_metadata(repo_path):
@@ -124,28 +124,7 @@ def run_pipeline(rtl_file, tb_file, top_module, repo_path):
 
                 print(f"       MMMC Timing closure: {mmmc_status}")
 
-                for mmmc_result in mmmc_results:
-                    corner = mmmc_result["corner"]
-                    previous = get_previous_corner_timing(
-                        build_id=build_id,
-                        corner=corner,
-                    )
 
-                    if previous is not None:
-                        previous_setup, previous_hold = previous
-
-                        setup_delta = (
-                            mmmc_result["setup_wns"] - previous_setup
-                        )
-                        hold_delta = (
-                            mmmc_result["hold_whs"] - previous_hold
-                        )
-
-                        print(
-                            f"       {corner} regression: "
-                            f"setup {setup_delta:+.2f} ns, "
-                            f"hold {hold_delta:+.2f} ns"
-                        )
 
 
     pipeline_runtime = time.time() - pipeline_start
@@ -165,6 +144,23 @@ def run_pipeline(rtl_file, tb_file, top_module, repo_path):
         overall_status,
         round(pipeline_runtime, 3),
     )
+
+    for result in results:
+        if result["stage"] == "sta":
+            corner = result["corner"]
+            previous = get_previous_corner_timing(build_id, corner)
+
+            if previous is not None:
+                previous_setup, previous_hold = previous
+
+                setup_delta = result["setup_wns"] - previous_setup
+                hold_delta = result["hold_whs"] - previous_hold
+
+                print(
+                    f"       {corner} regression: "
+                    f"setup {setup_delta:+.2f} ns, "
+                    f"hold {hold_delta:+.2f} ns"
+                )
 
     for result in results:
         create_stage_result(
