@@ -7,6 +7,7 @@ description = "Hardware CI health platform with AI-assisted failure analysis"
 requires-python = ">=3.12"
 dependencies = [
     "pydantic>=2.13,<3",
+    "google-genai>=1.0,<2",
 ]
 
 [project.optional-dependencies]
