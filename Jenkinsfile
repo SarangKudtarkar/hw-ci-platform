@@ -25,7 +25,7 @@ pipeline {
         stage('RTL CI Pipeline') {
             steps {
                 sh '''
-                    python3 flow/pipeline.py
+                    python3 flow/pipeline.py ../input-repo/src/async_fifo.v ../input-repo/async_fifo_tb.v async_fifo ../input-repo
                 '''
             }
         }
