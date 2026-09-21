@@ -1,0 +1,50 @@
+# This module defines expected behaviors for the AI failure-analysis evaluation suite.
+
+EVAL_CASES = [
+    {
+        "name": "simulation_failure",
+        "build_id": 8,
+        "expected_status": "FAIL",
+        "expected_failed_stage": "simulation",
+        "required_evidence": ["stage_results"],
+        "requires_causes": True,
+        "requires_checks": True,
+    },
+    {
+        "name": "passing_build",
+        "build_id": 11,
+        "expected_status": "PASS",
+        "expected_failed_stage": None,
+        "required_evidence": [],
+        "requires_causes": False,
+        "requires_checks": False,
+    },
+    {
+        "name": "missing_build",
+        "build_id": 999999,
+        "expected_status": "UNKNOWN",
+        "expected_failed_stage": None,
+        "required_evidence": [],
+        "requires_causes": False,
+        "requires_checks": False,
+    },
+    {
+        "name": "grounded_failure_analysis",
+        "build_id": 8,
+        "expected_status": "FAIL",
+        "expected_failed_stage": "simulation",
+        "required_evidence": ["builds", "stage_results"],
+        "requires_causes": True,
+        "requires_checks": True,
+    },
+    {
+        "name": "structured_output",
+        "build_id": 8,
+        "expected_status": "FAIL",
+        "expected_failed_stage": "simulation",
+        "required_evidence": ["stage_results"],
+        "requires_causes": True,
+        "requires_checks": True,
+        "requires_summary": True,
+    },
+]
