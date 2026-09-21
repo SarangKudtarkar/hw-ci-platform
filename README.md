@@ -2,6 +2,34 @@
 
 A Python-based CI/CD and analytics platform for multi-IP ASIC/SoC hardware repositories. It automatically runs RTL quality checks, records build history and runtime metrics, and provides a Streamlit dashboard for build health analysis.
 
+AI-assisted hardware CI failure analysis using Gemini, controlled read-only tools, SQLite, and Pydantic validation.
+
+## Setup
+```bash
+source .venv/bin/activate
+pip install -e ".[test]"
+export GEMINI_API_KEY="your-key"
+```
+
+## Commands
+```bash
+# Run local tests (no API calls)
+python -m pytest tests/ -v -m "not integration"
+
+# Analyze build 8
+python -m app.analyze 8
+
+# Run live integration test
+python -m pytest tests/test_agent_integration.py -v -m integration
+
+# Run live evaluations
+python -m evals.run_evals
+```
+
+
+
+
+
 ## Dashboard
 
 The Streamlit dashboard provides build health, pass/fail statistics, runtime trends, and build history.
