@@ -1,11 +1,29 @@
 pipeline {
     agent any
 
+    environment {
+        PDK_ROOT = '/home/sarang/.volare'
+    }
+
     stages {
 
         stage('Checkout') {
             steps {
                 checkout scm
+            }
+        }
+
+        stage('Fetch Input Repository') {
+            steps {
+                sh '''
+                    if [ ! -d ../input-repo/.git ]; then
+                        git clone https://github.com/SarangKudtarkar/RTL2GDS-Asynchronous-FIFO.git ../input-repo
+                    fi
+
+                    echo "=== Input Repository ==="
+                    git -C ../input-repo status --short
+                    git -C ../input-repo log -1 --oneline
+                '''
             }
         }
 
@@ -25,7 +43,11 @@ pipeline {
         stage('RTL CI Pipeline') {
             steps {
                 sh '''
-                    python3 flow/pipeline.py ../input-repo/src/async_fifo.v ../input-repo/async_fifo_tb.v async_fifo ../input-repo
+                    python3 flow/pipeline.py \
+                        ../input-repo/src/async_fifo.v \
+                        ../input-repo/async_fifo_tb.v \
+                        async_fifo \
+                        ../input-repo
                 '''
             }
         }
