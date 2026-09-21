@@ -1,3 +1,19 @@
+# This file defines project metadata, runtime dependencies, and pytest configuration.
+
+[project]
+name = "hw-ci-platform"
+version = "0.1.0"
+description = "Hardware CI health platform with AI-assisted failure analysis"
+requires-python = ">=3.12"
+dependencies = [
+    "pydantic>=2.13,<3",
+]
+
+[project.optional-dependencies]
+test = [
+    "pytest>=9,<10",
+]
+
 [tool.pytest.ini_options]
 pythonpath = ["."]
 testpaths = ["tests"]
