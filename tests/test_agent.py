@@ -72,7 +72,8 @@ class FakeInteractions:
 class FakeClient:
     """Simulate the Gemini client."""
 
-    def __init__(self):
+    def __init__(self, **kwargs):
+        self.client_options = kwargs
         self.interactions = FakeInteractions()
 
 
@@ -83,7 +84,7 @@ def test_agent_uses_at_most_two_gemini_requests(monkeypatch):
 
     monkeypatch.setattr(
         "agent.agent.genai.Client",
-        lambda api_key: fake_client,
+        lambda api_key, **kwargs: fake_client,
     )
 
     monkeypatch.setenv("GEMINI_API_KEY", "test-key")
@@ -105,7 +106,7 @@ def test_agent_passes_tool_result_to_second_request(monkeypatch):
 
     monkeypatch.setattr(
         "agent.agent.genai.Client",
-        lambda api_key: fake_client,
+        lambda api_key, **kwargs: fake_client,
     )
 
     monkeypatch.setenv("GEMINI_API_KEY", "test-key")
@@ -120,3 +121,26 @@ def test_agent_passes_tool_result_to_second_request(monkeypatch):
     assert len(second_call["input"]) == 1
     assert second_call["input"][0]["type"] == "function_result"
     assert second_call["input"][0]["name"] == "get_failed_stages"
+
+
+def test_agent_configures_gemini_timeout(monkeypatch):
+    """Verify the Gemini client receives a bounded HTTP timeout."""
+
+    fake_client = FakeClient()
+
+    def fake_client_factory(api_key, **kwargs):
+        fake_client.client_options = kwargs
+        return fake_client
+
+    monkeypatch.setattr(
+        "agent.agent.genai.Client",
+        fake_client_factory,
+    )
+
+    monkeypatch.setenv("GEMINI_API_KEY", "test-key")
+
+    analyze_build_with_agent(8)
+
+    http_options = fake_client.client_options["http_options"]
+
+    assert http_options.timeout == 60_000

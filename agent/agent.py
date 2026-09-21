@@ -4,6 +4,7 @@ import json
 import os
 
 from google import genai
+from google.genai import types
 
 from agent.schemas import FailureAnalysis
 from agent.tools import CI_TOOLS, execute_tool
@@ -54,7 +55,10 @@ def analyze_build_with_agent(build_id: int) -> FailureAnalysis:
 
     model = os.environ.get("GEMINI_MODEL", "gemini-3.5-flash")
 
-    client = genai.Client(api_key=api_key)
+    client = genai.Client(
+        api_key=api_key,
+        http_options=types.HttpOptions(timeout=60_000),
+    )
 
     interaction = client.interactions.create(
         model=model,
