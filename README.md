@@ -2,6 +2,8 @@
 
 A Python-based CI/CD and analytics platform for multi-IP ASIC/SoC hardware repositories. It automatically runs RTL quality checks, records build history and runtime metrics, and provides a Streamlit dashboard for build health analysis.
 
+![HW-CI Health Dashboard](Architecture_Overview.png)
+
 ## Dashboard
 
 The Streamlit dashboard provides build health, pass/fail statistics, runtime trends, and build history.
