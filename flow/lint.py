@@ -4,13 +4,27 @@ import time
 from pathlib import Path
 
 
-def run_lint(rtl_file):
-    rtl_file = Path(rtl_file)
+def as_path_list(files):
+    """Accept a single path or an iterable of paths."""
+    if isinstance(files, (str, Path)):
+        return [Path(files)]
+    return [Path(f) for f in files]
+
+
+def run_lint(rtl_files, top_module=None, include_dirs=(), defines=()):
+    rtl_files = as_path_list(rtl_files)
+
+    command = ["verilator", "--lint-only"]
+    command += [f"-I{d}" for d in include_dirs]
+    command += [f"-D{d}" for d in defines]
+    if top_module:
+        command += ["--top-module", top_module]
+    command += [str(f) for f in rtl_files]
 
     start = time.time()
 
     result = subprocess.run(
-        ["verilator", "--lint-only", str(rtl_file)],
+        command,
         capture_output=True,
         text=True,
     )
@@ -28,11 +42,11 @@ def run_lint(rtl_file):
 
 
 if __name__ == "__main__":
-    if len(sys.argv) != 2:
-        print(f"Usage: python {sys.argv[0]} <rtl_file>")
+    if len(sys.argv) < 2:
+        print(f"Usage: python {sys.argv[0]} <rtl_file> [<rtl_file> ...]")
         sys.exit(2)
 
-    result = run_lint(sys.argv[1])
+    result = run_lint(sys.argv[1:])
 
     print(f"Stage:   {result['stage']}")
     print(f"Status:  {result['status']}")

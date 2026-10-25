@@ -3,22 +3,39 @@ import sys
 import time
 from pathlib import Path
 
+from lint import as_path_list
 
-def run_synthesis(rtl_file, top_module, output_dir="results/synthesis"):
-    rtl_file = Path(rtl_file)
+
+def run_synthesis(
+    rtl_files,
+    top_module,
+    output_dir="results/synthesis",
+    include_dirs=(),
+    defines=(),
+):
+    rtl_files = as_path_list(rtl_files)
 
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
     netlist_file = output_dir / f"{top_module}_netlist.v"
 
+    read_options = "".join(f" -I{d}" for d in include_dirs)
+    read_options += "".join(f" -D{d}" for d in defines)
+
+    reads = "".join(
+        f"read_verilog{' -sv' if f.suffix == '.sv' else ''}"
+        f"{read_options} {f}; "
+        for f in rtl_files
+    )
+
     start = time.time()
 
     command = [
         "yosys",
         "-p",
-        f"read_verilog {rtl_file}; "
-        f"hierarchy -top {top_module}; "
+        f"{reads}"
+        f"hierarchy -check -top {top_module}; "
         "proc; opt; check; stat; "
         f"write_verilog -noattr {netlist_file}",
     ]

@@ -25,8 +25,8 @@ CORNERS = {
 }
 
 
-def run_corner(netlist, sdc, spef, top_module, corner, liberty):
-    output_dir = PROJECT_ROOT / "results" / "mmmc_sta"
+def run_corner(netlist, sdc, spef, top_module, corner, liberty, output_dir=None):
+    output_dir = Path(output_dir) if output_dir else PROJECT_ROOT / "results" / "mmmc_sta"
     output_dir.mkdir(parents=True, exist_ok=True)
 
     tcl_file = output_dir / f"{corner}.tcl"
@@ -130,7 +130,7 @@ exit
     }
 
 
-def run_mmmc_sta(netlist, sdc, spef, top_module):
+def run_mmmc_sta(netlist, sdc, spef, top_module, output_dir=None):
     print("=" * 60)
     print("MMMC STA")
     print("=" * 60)
@@ -158,6 +158,7 @@ def run_mmmc_sta(netlist, sdc, spef, top_module):
             top_module,
             corner,
             liberty,
+            output_dir,
         )
 
         results.append(result)

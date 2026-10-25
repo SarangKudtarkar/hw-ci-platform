@@ -4,7 +4,8 @@ CREATE TABLE IF NOT EXISTS builds (
     branch TEXT NOT NULL,
     timestamp TEXT NOT NULL,
     status TEXT NOT NULL,
-    runtime_sec REAL NOT NULL
+    runtime_sec REAL NOT NULL,
+    design TEXT
 );
 
 CREATE TABLE IF NOT EXISTS stage_results (
@@ -21,5 +22,6 @@ CREATE TABLE IF NOT EXISTS timing_results (
     build_id INTEGER NOT NULL,
     setup_wns REAL,
     hold_whs REAL,
+    corner TEXT,
     FOREIGN KEY (build_id) REFERENCES builds(id)
 );
