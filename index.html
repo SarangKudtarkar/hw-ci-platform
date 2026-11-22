@@ -1,0 +1,479 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>HW CI Platform Interactive Series</title>
+<meta name="description" content="Interactive walkthrough of a CI/CD and build-health analytics platform for ASIC/SoC RTL: lint, synthesis, simulation, SQLite history, a Streamlit dashboard, and AI-assisted failure analysis.">
+<style>
+:root{
+  --bg:#0b1020; --panel:#121a33; --panel2:#18224a; --line:#2a3566;
+  --text:#e6ebff; --muted:#8f9bc0; --accent:#5eead4; --accent2:#fbbf24;
+  --blue:#60a5fa; --pink:#f472b6; --bad:#f87171; --good:#4ade80;
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--text);font:16px/1.6 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+a{color:var(--accent)}
+nav{position:sticky;top:0;z-index:10;background:rgba(11,16,32,.92);backdrop-filter:blur(8px);border-bottom:1px solid var(--line);display:flex;gap:6px;flex-wrap:wrap;padding:10px 16px;align-items:center}
+nav b{margin-right:10px;font-size:14px;letter-spacing:.04em}
+nav a{color:var(--muted);text-decoration:none;font-size:13px;padding:4px 10px;border-radius:999px;border:1px solid transparent}
+nav a:hover{color:var(--text);border-color:var(--line)}
+header.hero{padding:56px 16px 24px;max-width:1000px;margin:0 auto}
+.hero h1{font-size:clamp(28px,5vw,46px);line-height:1.15;margin:0 0 12px}
+.hero p{color:var(--muted);max-width:740px;margin:0 0 18px}
+.chips{display:flex;gap:8px;flex-wrap:wrap}
+.chip{font:12px var(--mono);padding:4px 10px;border:1px solid var(--line);border-radius:999px;color:var(--muted)}
+section{max-width:1000px;margin:0 auto;padding:40px 16px;border-top:1px solid var(--line)}
+section h2{margin:0 0 6px;font-size:26px}
+section h2 span{color:var(--accent);font:600 14px var(--mono);margin-right:10px}
+.lead{color:var(--muted);margin:0 0 20px;max-width:780px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px}
+.row{display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin:12px 0}
+button,select{font:inherit;color:var(--text);background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:6px 12px;cursor:pointer}
+button:hover{border-color:var(--accent)}
+button.on{background:var(--accent);color:#04130f;border-color:var(--accent)}
+input[type=range],input[type=checkbox]{accent-color:var(--accent)}
+label{font-size:13px;color:var(--muted)}
+.note{font-size:13px;color:var(--muted)}
+.mono{font-family:var(--mono)}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media(max-width:760px){.grid2{grid-template-columns:1fr}}
+svg text{font-family:system-ui,sans-serif}
+.badge{display:inline-block;font:12px var(--mono);padding:3px 10px;border-radius:6px;border:1px solid var(--line)}
+.badge.ok{background:#14532d;border-color:var(--good);color:#dcfce7}
+.badge.bad{background:#7f1d1d;border-color:var(--bad);color:#fee2e2}
+.badge.warn{background:#4a3a08;border-color:var(--accent2);color:#fef3c7}
+.msg{margin-top:10px;min-height:44px;font-size:14px}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:4px 14px;font:13px var(--mono)}
+.kv span:nth-child(odd){color:var(--muted)}
+.kv b{color:var(--accent2);font-weight:600}
+
+.blk{cursor:pointer}
+.blk rect{fill:var(--panel2);stroke:var(--line);stroke-width:1.5;transition:.15s}
+.blk text{fill:var(--text);font-size:13px;text-anchor:middle;pointer-events:none}
+.blk:hover rect,.blk.sel rect{stroke:var(--accent);fill:#1d2a5c}
+.blk.opt rect{stroke-dasharray:6 4;stroke:var(--accent2)}
+.edge{fill:none;stroke:var(--muted);stroke-width:1.6;marker-end:url(#ah)}
+.edge.dash{stroke:var(--accent2);stroke-dasharray:6 4}
+#info{margin-top:12px;min-height:84px;background:var(--panel2)}
+#info h4{margin:0 0 4px;color:var(--accent)}
+
+/* pipeline sim */
+.pipe{display:flex;align-items:stretch;gap:6px;flex-wrap:wrap}
+.pn{flex:1;min-width:110px;background:var(--panel2);border:2px solid var(--line);border-radius:12px;padding:10px;text-align:center;transition:.25s}
+.pn b{display:block;font-size:14px}
+.pn small{display:block;color:var(--muted);font:11px var(--mono);margin-top:2px}
+.pn em{display:block;font:11px var(--mono);font-style:normal;margin-top:6px;min-height:16px}
+.pn.run{border-color:var(--blue);background:#1e3a8a}
+.pn.ok{border-color:var(--good);background:#10361f}
+.pn.fail{border-color:var(--bad);background:#4a1616}
+.pn.skip{opacity:.35}
+.ar{align-self:center;color:var(--muted)}
+pre{background:#0a0f22;border:1px solid var(--line);border-radius:10px;padding:14px;overflow:auto;font:13px/1.5 var(--mono);margin:0}
+.k{color:#c084fc}.c{color:#6b7bb0}.s{color:#fbbf24}.e{color:#f87171}.g{color:#4ade80}
+
+/* table */
+.tw{max-height:320px;overflow:auto;border:1px solid var(--line);border-radius:10px}
+table.t{border-collapse:collapse;width:100%;font:12px var(--mono)}
+table.t th,table.t td{padding:6px 8px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}
+table.t th{position:sticky;top:0;background:var(--panel2);color:var(--muted)}
+table.t tr.row{cursor:pointer}
+table.t tr.row:hover{background:#1a2550}
+table.t tr.sel{background:#1d2a5c}
+.pass{color:var(--good)}.failc{color:var(--bad)}
+.tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:12px}
+@media(max-width:760px){.tiles{grid-template-columns:1fr 1fr}}
+.tile{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:10px}
+.tile small{color:var(--muted);font-size:12px}
+.tile b{display:block;font-size:22px}
+canvas{width:100%;height:auto;background:#0a0f22;border:1px solid var(--line);border-radius:10px;display:block}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin-top:8px}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px}
+
+/* agent */
+.step{border-left:3px solid var(--line);padding:6px 12px;margin:8px 0;font:13px var(--mono);color:var(--muted);animation:fi .3s}
+.step.call{border-color:var(--blue)}.step.res{border-color:var(--accent2)}.step.val{border-color:var(--good)}.step.err{border-color:var(--bad)}
+.step b{color:var(--text)}
+@keyframes fi{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+
+.tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+.tree{font:13px/1.8 var(--mono);color:var(--muted)}
+.tree b{color:var(--text)}
+.road{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.road span{font-size:12px;padding:4px 10px;border:1px dashed var(--accent2);border-radius:999px;color:var(--accent2)}
+footer{max-width:1000px;margin:0 auto;padding:30px 16px 60px;color:var(--muted);font-size:13px;border-top:1px solid var(--line)}
+</style>
+</head>
+<body>
+
+<nav>
+  <b>HW CI PLATFORM</b>
+  <a href="#arch-s">Pipeline</a>
+  <a href="#run">Run a build</a>
+  <a href="#hist">Build history</a>
+  <a href="#trend">Runtime trend</a>
+  <a href="#ai">AI triage</a>
+  <a href="#howto">Run it</a>
+</nav>
+
+<header class="hero">
+  <h1>Hardware CI Platform<br>Interactive Series</h1>
+  <p>Software teams ship with CI/CD. Chip teams can too. Follow a commit through lint, synthesis and simulation, see every build recorded and traceable, watch runtimes drift, and see how an AI assistant can read a failed build and explain it.</p>
+  <div class="chips">
+    <span class="chip">Python</span><span class="chip">Verilator</span><span class="chip">Yosys</span><span class="chip">Icarus Verilog</span>
+    <span class="chip">SQLite</span><span class="chip">Streamlit</span><span class="chip">Jenkins</span><span class="chip">Gemini + Pydantic</span>
+  </div>
+</header>
+
+<!-- 01 -->
+<section id="arch-s">
+  <h2><span>01</span>Pipeline overview</h2>
+  <p class="lead">Each commit runs through three quality stages. A failure stops the pipeline. Every build is stored, then shown on a dashboard. Click a block to learn what it does.</p>
+  <div class="card">
+    <svg viewBox="0 0 1000 340" style="width:100%;height:auto;display:block" role="img" aria-label="Pipeline architecture">
+      <defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#8f9bc0"/></marker></defs>
+      <path class="edge" d="M220 80H250"/><path class="edge" d="M450 80H480"/><path class="edge" d="M680 80H710"/>
+      <path class="edge" d="M810 110V190"/>
+      <path class="edge" d="M710 220H680"/>
+      <path class="edge dash" d="M810 250V300H350V250"/>
+      <path class="edge dash" d="M120 190V110"/>
+      <text x="580" y="298" fill="#fbbf24" font-size="11" text-anchor="middle">read-only tools</text>
+      <text x="480" y="30" fill="#8f9bc0" font-size="12">Quality gate: pipeline stops at the first failing stage</text>
+      <g class="blk" data-b="git"><rect x="20" y="50" width="200" height="60" rx="10"/><text x="120" y="85">Git commit</text></g>
+      <g class="blk" data-b="lint"><rect x="250" y="50" width="200" height="60" rx="10"/><text x="350" y="85">Lint · Verilator</text></g>
+      <g class="blk" data-b="synth"><rect x="480" y="50" width="200" height="60" rx="10"/><text x="580" y="85">Synthesis · Yosys</text></g>
+      <g class="blk" data-b="sim"><rect x="710" y="50" width="200" height="60" rx="10"/><text x="810" y="85">Simulation · Icarus</text></g>
+      <g class="blk" data-b="db"><rect x="710" y="190" width="200" height="60" rx="10"/><text x="810" y="225">SQLite history</text></g>
+      <g class="blk" data-b="dash"><rect x="480" y="190" width="200" height="60" rx="10"/><text x="580" y="225">Streamlit dashboard</text></g>
+      <g class="blk opt" data-b="ai"><rect x="250" y="190" width="200" height="60" rx="10"/><text x="350" y="225">AI failure analysis</text></g>
+      <g class="blk opt" data-b="jen"><rect x="20" y="190" width="200" height="60" rx="10"/><text x="120" y="225">Jenkinsfile</text></g>
+    </svg>
+    <div id="info" class="card"></div>
+    <div class="card" style="margin-top:12px">
+      <div class="tree">
+<b>hw-ci-platform/</b><br>
+├─ flow/ &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;lint.py · synth.py · simulate.py · pipeline.py<br>
+├─ db/ &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;schema.sql · database.py · build.db<br>
+├─ analysis/ &nbsp;analytics.py<br>
+├─ dashboard/ app.py (Streamlit)<br>
+├─ app/ &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;analyze entry point (AI failure analysis)<br>
+├─ tests/ &nbsp;&nbsp;&nbsp;&nbsp;pytest suite<br>
+├─ evals/ &nbsp;&nbsp;&nbsp;&nbsp;evaluation runs<br>
+├─ agent/ · tools/ &nbsp;(not described in the README)<br>
+└─ Jenkinsfile · pyproject.toml
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 02 -->
+<section id="run">
+  <h2><span>02</span>Run a build</h2>
+  <p class="lead">Choose which stage should fail, then run. Watch the quality gate stop the pipeline and see the record that would be saved.</p>
+  <div class="card">
+    <div class="row" style="margin-top:0">
+      <label>Inject a failure in
+        <select id="pf"><option value="none">nothing (all pass)</option><option value="lint">Lint</option><option value="synth">Synthesis</option><option value="sim">Simulation</option></select>
+      </label>
+      <button id="pRun" class="on">▶ Run pipeline</button>
+    </div>
+    <div class="pipe" id="pipe"></div>
+    <div class="grid2" style="margin-top:14px">
+      <pre id="pRec"><span class="c">// build record appears here</span></pre>
+      <div class="msg" id="pMsg">Press Run. The flow runs Lint, then Synthesis, then Simulation, each only if the previous stage passed.</div>
+    </div>
+    <p class="note">Stage runtimes and messages are samples. The record shows what the README says is stored per build: branch, commit SHA, overall status, total runtime and per-stage status and runtime.</p>
+  </div>
+</section>
+
+<!-- 03 -->
+<section id="hist">
+  <h2><span>03</span>Build history and traceability</h2>
+  <p class="lead">Because every build records its commit SHA, a red build points straight at the change that broke it. Filter the history and click a row.</p>
+  <div class="card">
+    <div class="tiles">
+      <div class="tile"><small>Total builds</small><b id="tTot">0</b></div>
+      <div class="tile"><small>Pass / fail</small><b id="tPF">0 / 0</b></div>
+      <div class="tile"><small>Pass rate</small><b id="tRate">0%</b></div>
+      <div class="tile"><small>Avg runtime</small><b id="tAvg">0 s</b></div>
+    </div>
+    <div class="row" style="margin-top:0">
+      <label>Status <select id="hS"><option value="all">all</option><option value="PASS">PASS</option><option value="FAIL">FAIL</option></select></label>
+      <label>Branch <select id="hB"><option value="all">all</option></select></label>
+    </div>
+    <div class="tw"><table class="t" id="hT"></table></div>
+    <div class="msg" id="hMsg">Click a build to trace it back to its commit.</div>
+    <p class="note">Sample data generated in your browser for illustration. Tiles follow the dashboard metrics named in the README.</p>
+  </div>
+</section>
+
+<!-- 04 -->
+<section id="trend">
+  <h2><span>04</span>Runtime trends and regression detection</h2>
+  <p class="lead">Runtimes drift as designs grow. Flag any build that runs much slower than normal, an idea the README lists as a future enhancement.</p>
+  <div class="card">
+    <canvas id="chart" width="900" height="300"></canvas>
+    <div class="legend"><span><i style="background:#60a5fa"></i>lint</span><span><i style="background:#5eead4"></i>synthesis</span><span><i style="background:#fbbf24"></i>simulation</span><span><i style="background:#f87171"></i>failed build outline</span><span><i style="background:#f472b6"></i>flagged slow</span></div>
+    <div class="row">
+      <label>Flag builds above mean + <input id="kS" type="range" min="5" max="30" value="15"> <b id="kV" class="mono">1.5</b> σ</label>
+    </div>
+    <div class="msg" id="cMsg"></div>
+  </div>
+</section>
+
+<!-- 05 -->
+<section id="ai">
+  <h2><span>05</span>AI-assisted failure analysis</h2>
+  <p class="lead">The README describes Gemini-based analysis with controlled read-only tools, SQLite and Pydantic validation. Pick a failure and step through how such an agent loop works.</p>
+  <div class="card">
+    <div class="row" style="margin-top:0">
+      <label>Failure <select id="aF"><option value="lint">Lint: width warning</option><option value="synth">Synthesis: inferred latch</option><option value="sim">Simulation: data mismatch</option></select></label>
+      <label><input type="checkbox" id="aBad"> Model returns an invalid answer first</label>
+      <button id="aStep" class="on">Next step</button>
+      <button id="aRe">↻ Restart</button>
+    </div>
+    <div class="grid2">
+      <div><div class="note">Failing log excerpt (sample)</div><pre id="aLog"></pre></div>
+      <div><div class="note">Agent trace</div><div id="aTrace"></div></div>
+    </div>
+    <div class="msg" id="aMsg"></div>
+    <div class="note" style="margin-top:10px">Validation model (illustrative)</div>
+<pre><span class="k">class</span> FailureAnalysis(BaseModel):
+    build_id: <span class="k">int</span>
+    failed_stage: Literal[<span class="s">"lint"</span>, <span class="s">"synth"</span>, <span class="s">"sim"</span>]
+    root_cause: <span class="k">str</span>
+    suggested_fix: <span class="k">str</span>
+    confidence: <span class="k">float</span> = Field(ge=<span class="s">0</span>, le=<span class="s">1</span>)</pre>
+    <p class="note">Tool names, log text and the schema are illustrative. The key ideas are real: the model can only read data through narrow read-only tools, and its answer must pass schema validation before anyone sees it.</p>
+  </div>
+</section>
+
+<!-- 06 -->
+<section id="howto">
+  <h2><span>06</span>Run it yourself</h2>
+  <p class="lead">The steps from the README, in order.</p>
+  <div class="card">
+    <div class="tabs" id="rtabs">
+      <button data-t="setup" class="on">Setup</button>
+      <button data-t="db">Database</button>
+      <button data-t="run">Pipeline</button>
+      <button data-t="dash">Dashboard</button>
+      <button data-t="test">Tests + AI</button>
+    </div>
+    <pre id="rcode"></pre>
+    <div class="note" style="margin-top:14px">Planned next, from the README:</div>
+    <div class="road"><span>Parallel multi-IP scheduling</span><span>Formal equivalence (EQY / SymbiYosys)</span><span>OpenLane RTL-to-GDS</span><span>Git pre-push gates</span><span>Slack notifications</span><span>Release-readiness metrics</span><span>Runtime regression detection</span><span>Distributed build workers</span></div>
+  </div>
+</section>
+
+<footer>
+  Source: <a href="https://github.com/SarangKudtarkar/hw-ci-platform">github.com/SarangKudtarkar/hw-ci-platform</a> · Pipeline structure and commands come from the project README. Sample data, logs and agent traces on this page are illustrations.
+</footer>
+
+<script>
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+function rng(seed){return function(){seed|=0;seed=seed+0x6D2B79F5|0;let t=Math.imul(seed^seed>>>15,1|seed);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;}}
+const hex=r=>{let s='';for(let i=0;i<7;i++)s+='0123456789abcdef'[(r()*16)|0];return s;};
+
+/* 01 */
+const B={
+ git:['Git commit','Every commit (or push) triggers a run. The branch and commit SHA are captured so each result can be traced back to the exact change.'],
+ lint:['Lint · Verilator','Static RTL checks: width mismatches, unused or undriven signals and similar issues. Cheap and fast, so it runs first.'],
+ synth:['Synthesis · Yosys','Checks the RTL actually synthesizes and catches problems such as inferred latches. Runs only if lint passed.'],
+ sim:['Simulation · Icarus Verilog','Runs the testbench against the design. Runs only if synthesis passed. The example input is an asynchronous FIFO project.'],
+ db:['SQLite history','Stores each build: branch, commit SHA, overall PASS/FAIL, total runtime, and per-stage status and runtime. Tables are defined in db/schema.sql.'],
+ dash:['Streamlit dashboard','Shows total builds, pass and fail counts, pass rate, runtime trends, build history, commit traceability and average runtime.'],
+ ai:['AI failure analysis','Uses Gemini with controlled read-only tools over the build data, and validates the structured answer with Pydantic. Run with python -m app.analyze followed by a build id.'],
+ jen:['Jenkinsfile','The repo includes a Jenkinsfile so the same flow can be driven by a Jenkins job. The README does not describe its contents in detail.']
+};
+function showB(k){$$('.blk').forEach(n=>n.classList.toggle('sel',n.dataset.b===k));$('#info').innerHTML='<h4>'+B[k][0]+'</h4>'+B[k][1];}
+$$('.blk').forEach(n=>n.addEventListener('click',()=>showB(n.dataset.b)));showB('lint');
+
+/* 02 pipeline run */
+(function(){
+ const ST=[
+  {k:'lint',n:'Lint',t:'Verilator',d:1.2,msg:"%Warning-WIDTH: async_fifo.v:42 expects 4 bits but RHS is 5"},
+  {k:'synth',n:'Synthesis',t:'Yosys',d:3.6,msg:"Latch inferred for signal \\async_fifo.rdata"},
+  {k:'sim',n:'Simulation',t:'Icarus',d:2.2,msg:"TB: data mismatch, expected A5 got 5A"}
+ ];
+ const pipe=$('#pipe');let busy=false;
+ function build(){
+  pipe.innerHTML='';
+  const c=document.createElement('div');c.className='pn ok';c.innerHTML='<b>Commit</b><small>git</small><em></em>';pipe.appendChild(c);
+  ST.forEach(s=>{const a=document.createElement('div');a.className='ar';a.textContent='→';pipe.appendChild(a);
+   const n=document.createElement('div');n.className='pn';n.id='pn-'+s.k;n.innerHTML='<b>'+s.n+'</b><small>'+s.t+'</small><em></em>';pipe.appendChild(n);});
+ }
+ function setN(k,cls,txt){const n=$('#pn-'+k);n.className='pn '+cls;n.querySelector('em').textContent=txt||'';}
+ function run(){
+  if(busy)return;busy=true;build();
+  const fail=$('#pf').value,r=rng(Date.now()&0xffff),sha=hex(r),res={};
+  $('#pRec').innerHTML='<span class="c">// running…</span>';$('#pMsg').textContent='Running…';
+  let i=0,total=0;
+  function next(){
+   if(i>=ST.length){finish();return;}
+   const s=ST[i];setN(s.k,'run','running…');
+   setTimeout(()=>{
+    const dur=+(s.d*(0.85+r()*0.3)).toFixed(1);
+    if(fail===s.k){setN(s.k,'fail','FAIL '+dur+'s');res[s.k]={status:'FAIL',s:dur};total+=dur;
+     for(let j=i+1;j<ST.length;j++){setN(ST[j].k,'skip','skipped');res[ST[j].k]={status:'SKIPPED',s:0};}
+     finish(s);return;}
+    setN(s.k,'ok','PASS '+dur+'s');res[s.k]={status:'PASS',s:dur};total+=dur;i++;next();
+   },750);
+  }
+  function finish(f){
+   const ok=!f;
+   $('#pRec').innerHTML=
+'<span class="c">// row saved to SQLite</span>\n{\n  <span class="s">"branch"</span>: <span class="s">"main"</span>,\n  <span class="s">"commit"</span>: <span class="s">"'+sha+'"</span>,\n  <span class="s">"status"</span>: <span class="'+(ok?'g':'e')+'">"'+(ok?'PASS':'FAIL')+'"</span>,\n  <span class="s">"total_s"</span>: '+total.toFixed(1)+',\n  <span class="s">"stages"</span>: {\n'+ST.map(s=>'    <span class="s">"'+s.k+'"</span>: {"status": "'+res[s.k].status+'", "s": '+res[s.k].s+'}').join(',\n')+'\n  }\n}';
+   $('#pMsg').innerHTML=ok?'<span class="badge ok">PASS</span> All three stages passed in <b>'+total.toFixed(1)+' s</b>. The result is stored and appears on the dashboard.':'<span class="badge bad">FAIL in '+f.n+'</span> The quality gate stopped the pipeline, so later stages were skipped and no time was wasted on them. Message: <span class="mono">'+f.msg+'</span>';
+   busy=false;
+  }
+  next();
+ }
+ $('#pRun').addEventListener('click',run);build();
+})();
+
+/* shared sample builds */
+const BUILDS=(function(){
+ const r=rng(20261122),br=['main','main','dev','feature/fifo-depth'],out=[];
+ for(let i=1;i<=28;i++){
+  const b=br[(r()*4)|0],sha=hex(r);
+  let l=1+r()*0.5,s=3+r()*1.4,m=2+r()*1;
+  if(r()<0.12)m*=2.6;
+  const f=r();let st='PASS',fs=null;
+  if(f<0.10){st='FAIL';fs='lint';l*=0.8;s=null;m=null;}
+  else if(f<0.18){st='FAIL';fs='synth';s*=0.7;m=null;}
+  else if(f<0.26){st='FAIL';fs='sim';m*=0.6;}
+  const tot=(l||0)+(s||0)+(m||0);
+  out.push({id:i,branch:b,sha,status:st,fs,lint:l,synth:s,sim:m,total:tot});
+ }
+ return out;
+})();
+const f1=x=>x==null?'—':x.toFixed(1);
+
+/* 03 history */
+(function(){
+ const bs=[...new Set(BUILDS.map(b=>b.branch))];
+ bs.forEach(b=>{const o=document.createElement('option');o.value=b;o.textContent=b;$('#hB').appendChild(o);});
+ let sel=null;
+ function draw(){
+  const fs=$('#hS').value,fb=$('#hB').value;
+  const rows=BUILDS.filter(b=>(fs==='all'||b.status===fs)&&(fb==='all'||b.branch===fb));
+  const pass=rows.filter(b=>b.status==='PASS').length,fail=rows.length-pass;
+  $('#tTot').textContent=rows.length;$('#tPF').textContent=pass+' / '+fail;
+  $('#tRate').textContent=rows.length?Math.round(pass/rows.length*100)+'%':'—';
+  $('#tAvg').textContent=rows.length?(rows.reduce((a,b)=>a+b.total,0)/rows.length).toFixed(1)+' s':'—';
+  $('#hT').innerHTML='<tr><th>#</th><th>branch</th><th>commit</th><th>status</th><th>total s</th><th>lint</th><th>synth</th><th>sim</th></tr>'+
+   rows.slice().reverse().map(b=>'<tr class="row'+(sel===b.id?' sel':'')+'" data-id="'+b.id+'"><td>'+b.id+'</td><td>'+b.branch+'</td><td>'+b.sha+'</td><td class="'+(b.status==='PASS'?'pass':'failc')+'">'+b.status+(b.fs?' ('+b.fs+')':'')+'</td><td>'+b.total.toFixed(1)+'</td><td>'+f1(b.lint)+'</td><td>'+f1(b.synth)+'</td><td>'+f1(b.sim)+'</td></tr>').join('');
+  $$('#hT tr.row').forEach(tr=>tr.addEventListener('click',()=>{sel=+tr.dataset.id;const b=BUILDS.find(x=>x.id===sel);
+   $('#hMsg').innerHTML='Build <b>#'+b.id+'</b> on <b>'+b.branch+'</b> ran commit <span class="mono">'+b.sha+'</span> and '+(b.status==='PASS'?'passed all stages.':'<b>failed in '+b.fs+'</b>.')+' To inspect the change: <span class="mono">git show '+b.sha+'</span>';
+   draw();}));
+ }
+ $('#hS').addEventListener('change',draw);$('#hB').addEventListener('change',draw);draw();
+})();
+
+/* 04 trend */
+(function(){
+ const cv=$('#chart'),ctx=cv.getContext('2d');
+ function draw(){
+  const k=+$('#kS').value/10;$('#kV').textContent=k.toFixed(1);
+  const pass=BUILDS.filter(b=>b.status==='PASS').map(b=>b.total);
+  const mean=pass.reduce((a,x)=>a+x,0)/pass.length,sd=Math.sqrt(pass.reduce((a,x)=>a+(x-mean)**2,0)/pass.length),th=mean+k*sd;
+  const W=cv.width,H=cv.height,P=34,maxV=Math.max(...BUILDS.map(b=>b.total),th)*1.1,n=BUILDS.length,bw=(W-P-10)/n;
+  const Y=v=>H-24-v/maxV*(H-40);
+  ctx.clearRect(0,0,W,H);ctx.fillStyle='#6b7bb0';ctx.font='11px system-ui';ctx.strokeStyle='#1d2850';
+  for(let v=0;v<=maxV;v+=2){ctx.beginPath();ctx.moveTo(P,Y(v));ctx.lineTo(W-6,Y(v));ctx.stroke();ctx.fillText(v+'s',4,Y(v)+3);}
+  let flagged=0;
+  BUILDS.forEach((b,i)=>{
+   const x=P+i*bw+2,w=bw-4;let y=Y(0);
+   [['lint','#60a5fa'],['synth','#5eead4'],['sim','#fbbf24']].forEach(([s,c])=>{const v=b[s]||0;if(!v)return;const h=v/maxV*(H-40);ctx.fillStyle=c;ctx.fillRect(x,y-h,w,h);y-=h;});
+   const slow=b.status==='PASS'&&b.total>th;if(slow)flagged++;
+   if(slow){ctx.strokeStyle='#f472b6';ctx.lineWidth=2;ctx.strokeRect(x-1,Y(b.total)-1,w+2,b.total/maxV*(H-40)+2);}
+   else if(b.status==='FAIL'){ctx.strokeStyle='#f87171';ctx.lineWidth=2;ctx.strokeRect(x-1,Y(b.total)-1,w+2,b.total/maxV*(H-40)+2);}
+   ctx.lineWidth=1;
+  });
+  ctx.strokeStyle='#f472b6';ctx.setLineDash([6,4]);ctx.beginPath();ctx.moveTo(P,Y(th));ctx.lineTo(W-6,Y(th));ctx.stroke();ctx.setLineDash([]);
+  ctx.fillStyle='#f472b6';ctx.fillText('threshold '+th.toFixed(1)+'s',W-110,Y(th)-4);
+  $('#cMsg').innerHTML='Normal passing build: <b>'+mean.toFixed(1)+' s</b> ± '+sd.toFixed(1)+' s. Threshold <b>'+th.toFixed(1)+' s</b> flags <b>'+flagged+'</b> slow build'+(flagged===1?'':'s')+'. Too low and normal variation raises false alarms; too high and real slowdowns slip through. Failed builds are shorter because the gate stops them early.';
+ }
+ $('#kS').addEventListener('input',draw);draw();
+})();
+
+/* 05 AI */
+(function(){
+ const SC={
+  lint:{stage:'lint',log:'<span class="e">%Warning-WIDTH</span>: async_fifo.v:42:\n  Operator ASSIGNW expects 4 bits on the\n  Assign RHS, but Assign RHS\'s ADD\n  generates 5 bits.\n<span class="c">Lint stage: FAIL</span>',
+   cause:'The write pointer increment produces 5 bits but is assigned to a 4-bit register, so the carry is silently dropped.',fix:'Size the increment to the pointer width or add an explicit truncation, and confirm the pointer width is intended.',conf:0.86},
+  synth:{stage:'synth',log:'<span class="e">Warning</span>: Latch inferred for signal\n  `\\async_fifo.rdata\' from process\n  `\\async_fifo.$proc$async_fifo.v:61\'.\n<span class="c">Synthesis stage: FAIL</span>',
+   cause:'A combinational always block does not assign rdata on every path, so synthesis creates a latch.',fix:'Add a default assignment at the top of the block or cover every branch of the if/case.',conf:0.9},
+  sim:{stage:'sim',log:'<span class="e">ERROR</span>: t=1840 ns data mismatch\n  expected 0xA5, got 0x5A\n<span class="c">Simulation stage: FAIL</span>',
+   cause:'Read data appears byte-swapped relative to what was written, which points at the read path or the testbench comparison rather than a timing issue.',fix:'Check byte ordering on the read data path and the scoreboard expectation, then rerun with a waveform dump.',conf:0.7}
+ };
+ let step=0;
+ function cur(){return SC[$('#aF').value];}
+ function reset(){step=0;$('#aTrace').innerHTML='';$('#aMsg').innerHTML='';$('#aLog').innerHTML=cur().log;$('#aStep').disabled=false;}
+ function add(cls,html){const d=document.createElement('div');d.className='step '+cls;d.innerHTML=html;$('#aTrace').appendChild(d);}
+ function next(){
+  const s=cur(),bad=$('#aBad').checked,id=28;
+  const plan=[
+   ()=>add('call','<b>tool call</b> list_recent_builds(limit=5)'),
+   ()=>add('res','<b>result</b> build #'+id+' FAIL ('+s.stage+')'),
+   ()=>add('call','<b>tool call</b> get_stage_log(build_id='+id+', stage="'+s.stage+'")'),
+   ()=>add('res','<b>result</b> log excerpt returned (read-only)')
+  ];
+  if(bad){
+   plan.push(()=>add('err','<b>model answer</b> confidence = 1.4, stage = "'+s.stage+'"'));
+   plan.push(()=>add('err','<b>validation failed</b> confidence must be ≤ 1. Answer rejected, model asked to retry.'));
+  }
+  plan.push(()=>add('val','<b>model answer</b> confidence = '+s.conf+' · schema OK'));
+  plan.push(()=>{add('val','<b>validated</b> FailureAnalysis accepted');
+   $('#aMsg').innerHTML='<span class="badge ok">validated result</span><br><b>Root cause:</b> '+s.cause+'<br><b>Suggested fix:</b> '+s.fix+'<br><b>Confidence:</b> '+s.conf;
+   $('#aStep').disabled=true;});
+  if(step<plan.length){plan[step]();step++;}
+ }
+ $('#aStep').addEventListener('click',next);$('#aRe').addEventListener('click',reset);
+ $('#aF').addEventListener('change',reset);$('#aBad').addEventListener('change',reset);reset();
+})();
+
+/* 06 */
+(function(){
+ const C={
+setup:`<span class="c"># virtual environment and dependencies</span>
+python3 -m venv .venv &amp;&amp; <span class="k">source</span> .venv/bin/activate
+pip install streamlit pandas
+
+<span class="c"># for tests and the AI features</span>
+pip install -e <span class="s">".[test]"</span>
+<span class="k">export</span> GEMINI_API_KEY=<span class="s">...</span>`,
+db:`<span class="c"># create the SQLite database from the schema</span>
+sqlite3 db/build.db &lt; db/schema.sql
+
+<span class="c"># clone the async FIFO example as the input design</span>
+git clone &lt;async-fifo-repo-url&gt; input-repo`,
+run:`<span class="c"># lint → synthesis → simulation, stop on first failure</span>
+python3 flow/pipeline.py \\
+  ../input-repo/async_fifo.v \\
+  ../input-repo/async_fifo_tb.v \\
+  async_fifo ../input-repo
+
+<span class="c"># analytics over stored builds</span>
+python3 analysis/analytics.py`,
+dash:`<span class="c"># open the dashboard</span>
+streamlit run dashboard/app.py`,
+test:`<span class="c"># unit tests, no API calls</span>
+python -m pytest tests/ -v -m <span class="s">"not integration"</span>
+
+<span class="c"># live integration tests and evals</span>
+python -m pytest tests/ -v -m integration
+python -m evals.run_evals
+
+<span class="c"># explain a failed build</span>
+python -m app.analyze <span class="s">8</span>`
+ };
+ function show(t){$$('#rtabs button').forEach(b=>b.classList.toggle('on',b.dataset.t===t));$('#rcode').innerHTML=C[t];}
+ $$('#rtabs button').forEach(b=>b.addEventListener('click',()=>show(b.dataset.t)));show('setup');
+})();
+</script>
+</body>
+</html>
